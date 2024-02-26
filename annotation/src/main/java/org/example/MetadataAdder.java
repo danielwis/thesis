@@ -2,21 +2,69 @@ package org.example;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-
 import org.objectweb.asm.*;
 
-class CustomAttribute extends Attribute {
-    String value = "hello world";
+/*
+ * From JVMS Ch. 4.7 on class file attributes:
+ * 
+ * All attributes have the following general format:
+ * ```
+ * attribute_info {
+ *   u2 attribute_name_index;
+ *   u4 attribute_length;
+ *   u1 info[attribute_length];
+ * }
+ * ```
+ * [...]
+ * The value of the attribute_length item indicates the length of the
+ * subsequent information in bytes. The length does not include the initial
+ * six bytes that contain the attribute_name_index and attribute_length
+ * items.
+ */
+
+class MavenPackageAttribute extends Attribute {
+    private String value;
 
     // Create a named custom attribute
-    CustomAttribute(String attrName /* , String value */) {
-        super(attrName);
+    MavenPackageAttribute(String value) {
+        super("Maven Package Name");
+        this.value = value;
+    }
+
+    public String getValue() {
+        return this.value;
     }
 
     @Override
     protected Attribute read(ClassReader cr, int off, int len,
             char[] buf, int codeOff, Label[] labels) {
-        return new CustomAttribute(cr.readUTF8(off, buf));
+        return new MavenPackageAttribute(cr.readUTF8(off, buf));
+    }
+
+    @Override
+    protected ByteVector write(ClassWriter cw, byte[] code, int len,
+            int maxStack, int maxLocals) {
+        return new ByteVector().putShort(cw.newUTF8(value));
+    }
+}
+
+class MavenSHAAttribute extends Attribute {
+    private String value;
+
+    // Create a named custom attribute
+    MavenSHAAttribute(String value) {
+        super("Maven jar SHA1");
+        this.value = value;
+    }
+
+    public String getValue() {
+        return this.value;
+    }
+
+    @Override
+    protected Attribute read(ClassReader cr, int off, int len,
+            char[] buf, int codeOff, Label[] labels) {
+        return new MavenSHAAttribute(cr.readUTF8(off, buf));
     }
 
     @Override
@@ -38,19 +86,24 @@ class AttributeVisitor extends ClassVisitor {
      * We pass in a ClassWriter as the visitor here (it's a subclass of it that
      * "serialises"/writes whatever it comes across). Any calls not overridden
      * will just be delegated to `cv` instead.
+     *
+     * This effectively means (or can be thought of as) that each part of the
+     * class file that we encounter is just "forwarded" to the writer (using
+     * copy optimisations, if I understand this correctly) except for the end
+     * of the class file, where we insert (a) new attribute(s) before
+     * signalling to the writer that we've reached the end.
      */
     public AttributeVisitor(ClassVisitor cv) {
         super(Opcodes.ASM9, cv);
     }
 
     /*
-     * "Filter" the end of the class by adding a new attribute to the
-     * superclass visitor (in our case, the writer) before exiting.
+     * Write (a) new attribute(s) to the resulting class file before exiting.
      */
     @Override
     public void visitEnd() {
-        cv.visitAttribute(new CustomAttribute("Maven pkg name"));
-        cv.visitAttribute(new CustomAttribute("Maven SHA1"));
+        cv.visitAttribute(new MavenPackageAttribute("a.very.good.package"));
+        cv.visitAttribute(new MavenSHAAttribute("fake1337hash"));
         cv.visitEnd();
     }
 }
@@ -58,9 +111,10 @@ class AttributeVisitor extends ClassVisitor {
 public class MetadataAdder {
     ClassReader reader;
     ClassWriter writer;
-    String filePath = "Experiment.class";
+    String filePath;
 
-    public MetadataAdder(byte[] bytes) throws IOException {
+    public MetadataAdder(byte[] bytes, String outFile) throws IOException {
+        this.filePath = outFile;
         reader = new ClassReader(bytes);
         /*
          * Keep a reference to the reader to enable copying optimisations (see
@@ -76,8 +130,8 @@ public class MetadataAdder {
         reader.accept(new AttributeVisitor(writer), 0);
         try (FileOutputStream fos = new FileOutputStream(filePath)) {
             // Write the byte array to the file
-            fos.write(writer.toByteArray()); // this throws...?
-            System.out.println("Byte array successfully written to the file: " + filePath);
+            fos.write(writer.toByteArray());
+            System.out.println("New class file successfully written to \033[;1m" + filePath + "\033[0m");
         } catch (IOException e) {
             e.printStackTrace();
         }
