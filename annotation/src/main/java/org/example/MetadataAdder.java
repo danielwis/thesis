@@ -6,8 +6,10 @@ import java.io.IOException;
 import org.objectweb.asm.*;
 
 class CustomAttribute extends Attribute {
+    String value = "hello world";
+
     // Create a named custom attribute
-    CustomAttribute(String attrName) {
+    CustomAttribute(String attrName /* , String value */) {
         super(attrName);
     }
 
@@ -20,7 +22,7 @@ class CustomAttribute extends Attribute {
     @Override
     protected ByteVector write(ClassWriter cw, byte[] code, int len,
             int maxStack, int maxLocals) {
-        return new ByteVector().putShort(cw.newUTF8("Hello world!"));
+        return new ByteVector().putShort(cw.newUTF8(value));
     }
 }
 
@@ -47,7 +49,8 @@ class AttributeVisitor extends ClassVisitor {
      */
     @Override
     public void visitEnd() {
-        cv.visitAttribute(new CustomAttribute("Maven stuff"));
+        cv.visitAttribute(new CustomAttribute("Maven pkg name"));
+        cv.visitAttribute(new CustomAttribute("Maven SHA1"));
         cv.visitEnd();
     }
 }
