@@ -20,9 +20,7 @@ public class Main {
             try {
                 Path path = Paths.get(inFile);
                 byte[] bytes = Files.readAllBytes(path);
-                if (bytes == null)
-                    System.out.println("null");
-                System.out.println("length of " + inFile + ": " + bytes.length);
+                System.out.println("Size of " + inFile + ": " + bytes.length);
 
                 ClassReader cr = new ClassReader(bytes);
                 cr.accept(mp, new Attribute[] { new MavenPackageAttribute(""), new MavenSHAAttribute("") }, 0);
