@@ -70,7 +70,7 @@ public class EmbeddingMojo
                 System.err.println(e);
             }
 
-            getLog().info("\033[;1mFound dependency: \033[0m" + a.getFile()
+            getLog().info("\033[1mFound dependency: \033[0m" + a.getFile()
                     + "\n\t" + "- Group: " + a.getGroupId()
                     + "\n\t" + "- Artifact: " + a.getArtifactId()
                     + "\n\t" + "- Version: " + a.getVersion()
