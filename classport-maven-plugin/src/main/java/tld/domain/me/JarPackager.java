@@ -1,13 +1,21 @@
 package tld.domain.me;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileVisitResult;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 
 class JarPackager {
     private File sourcePath;
@@ -49,7 +57,43 @@ class JarPackager {
         }
     }
 
-    public void createAt(File destPath) {
+    public void createAt(File jarName) throws IOException {
         // sourcePath is a directory, package it as a .jar at destPath
+        if (jarName.exists())
+            throw new IOException("File or directory " + jarName + " already exists");
+
+        try (JarOutputStream os = new JarOutputStream(
+                new BufferedOutputStream(new FileOutputStream(jarName)))) {
+            // we just put slashes in filenames to make directories (?)
+            // so we have a "root path" and a file name which should be enough
+            // stackoverflow "how can i zip a complete directory with all subfoldres in
+            // Java"
+            Files.walkFileTree(sourcePath.toPath(), new SimpleFileVisitor<Path>() {
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    String relPath = sourcePath.toPath().relativize(file).toString();
+                    System.out.println("Found file: " + relPath);
+                    os.putNextEntry(new JarEntry(relPath));
+                    try (FileInputStream in = new FileInputStream(file.toFile())) {
+                        in.transferTo(os);
+                    }
+                    os.closeEntry();
+                    return FileVisitResult.CONTINUE;
+                }
+
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    String relPath = sourcePath.toPath().relativize(dir).toString() + "/";
+
+                    // .jar files don't include the root ("/")
+                    if (dir.equals(sourcePath.toPath()))
+                        return FileVisitResult.CONTINUE;
+
+                    System.out.println("Found directory: " + relPath);
+                    os.putNextEntry(new JarEntry(relPath));
+                    os.closeEntry();
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+
     }
 }

@@ -58,6 +58,8 @@ public class EmbeddingMojo
                 getLog().info("Extracting " + a.getFile() + " to " + tmpdir);
                 pkgr.extractTo(tmpdir);
                 getLog().info("Extraction complete");
+                pkgr = new JarPackager(tmpdir);
+                pkgr.createAt(new File("/tmp/" + a.getArtifactId()));
 
                 /*
                 for file in files:
