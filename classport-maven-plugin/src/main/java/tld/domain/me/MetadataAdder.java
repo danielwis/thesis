@@ -111,10 +111,8 @@ class AttributeVisitor extends ClassVisitor {
 public class MetadataAdder {
     ClassReader reader;
     ClassWriter writer;
-    String filePath;
 
-    public MetadataAdder(byte[] bytes, String outFile) throws IOException {
-        this.filePath = outFile;
+    public MetadataAdder(byte[] bytes) throws IOException {
         reader = new ClassReader(bytes);
         /*
          * Keep a reference to the reader to enable copying optimisations (see
@@ -125,15 +123,9 @@ public class MetadataAdder {
         writer = new ClassWriter(reader, 0);
     }
 
-    public void add() {
+    public byte[] add() {
         System.out.println("Attempting to add attribute...");
         reader.accept(new AttributeVisitor(writer), 0);
-        try (FileOutputStream fos = new FileOutputStream(filePath)) {
-            // Write the byte array to the file
-            fos.write(writer.toByteArray());
-            System.out.println("New class file successfully written to \033[;1m" + filePath + "\033[0m");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        return writer.toByteArray();
     }
 }

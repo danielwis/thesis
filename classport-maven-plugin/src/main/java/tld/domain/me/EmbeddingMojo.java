@@ -26,12 +26,10 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import tld.domain.me.MetadataAdder;
-import tld.domain.me.JarPackager;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.Set;
 
 // TODO:
@@ -51,36 +49,30 @@ public class EmbeddingMojo
     public void execute() throws MojoExecutionException, MojoFailureException {
         Set<Artifact> afs = project.getArtifacts();
         getLog().info("Found " + afs.size() + " artefacts.");
+        // TODO recreate the maven repo directory structure so that we have someplace to
+        // put the new jars
         for (Artifact a : afs) {
             try {
-                JarPackager pkgr = new JarPackager(a.getFile());
-                File tmpdir = Files.createTempDirectory("classport").toFile();
-                getLog().info("Extracting " + a.getFile() + " to " + tmpdir);
-                pkgr.extractTo(tmpdir);
-                getLog().info("Extraction complete");
-                pkgr = new JarPackager(tmpdir);
-                pkgr.createAt(new File("/tmp/" + a.getArtifactId()));
-
-                /*
-                for file in files:
-                    var m = new MetadataAdder(file);
-                    m.add(metadata)
-
-                pkgr.createAt(originalPath);
-                */
+                HashMap<String, String> metadataPairs = new HashMap<>();
+                // TODO More SBOM stuff here
+                // - URL
+                // - Parent info
+                // - Checksums
+                metadataPairs.put("GroupId", a.getGroupId());
+                metadataPairs.put("ArtifactId", a.getArtifactId());
+                metadataPairs.put("Version", a.getVersion());
+                JarHelper pkgr = new JarHelper(a.getFile(), new File("/tmp/classport-" + a.getArtifactId()));
+                pkgr.embed("classport", metadataPairs); // TODO right now, this just unpacks and repacks the
+                                                        // jar
             } catch (IOException e) {
                 System.err.println(e);
             }
 
-            getLog().info("\033[1mFound dependency: \033[0m" + a.getFile()
-                    + "\n\t" + "- Group: " + a.getGroupId()
-                    + "\n\t" + "- Artifact: " + a.getArtifactId()
-                    + "\n\t" + "- Version: " + a.getVersion()
-                    + "\n\t" + "- URL: " + (a.getRepository() == null ? "<unknown>"
-                            : a.getRepository().getUrl())
-                    + "\n\t" + "- Download URL: " + a.getDownloadUrl()
-                    + "\n\t" + "- Constructed (best guess) URL: "
-                    + "TODO (get repo URL, add params)");
+            getLog().info("Found dependency: "
+                    + a.getGroupId()
+                    + ":" + a.getArtifactId()
+                    + ":" + a.getVersion()
+                    + " (" + a.getFile() + ")");
         }
     }
 }
